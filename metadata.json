@@ -1,0 +1,9 @@
+{
+  "name": "StaffSync - QR Attendance & Staff Management System",
+  "description": "Modern staff management and employee attendance system with QR code clock in/out, shift tracking, department analytics, and exportable reports.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
