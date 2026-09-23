@@ -4,7 +4,7 @@ import {
   UserPlus,
   Search,
   Filter,
-  QrCode,
+  Barcode,
   Edit2,
   Trash2,
   UserCheck,
@@ -203,7 +203,7 @@ export const StaffView: React.FC<StaffViewProps> = ({
         avatarUrl: formData.avatarUrl.trim() || undefined,
       });
       handleCloseAddModal();
-      // Promptly show badge modal so admin can print/download QR and Barcode immediately
+      // Promptly show badge modal so admin can print/download Barcode immediately
       setSelectedBadgeStaff(created);
     }
   };
@@ -223,19 +223,6 @@ export const StaffView: React.FC<StaffViewProps> = ({
     }
     if (window.confirm(`Are you sure you want to delete staff member "${staff.fullName}" (${staff.staffId})?`)) {
       storage.deleteStaff(staff.id);
-    }
-  };
-
-  const handleRegenerateQr = (staffId: string) => {
-    if (!isAdmin) {
-      onOpenAdminLogin();
-      return;
-    }
-    if (window.confirm('Regenerating QR code will invalidate any printed physical cards. Continue?')) {
-      const updated = storage.regenerateQrCode(staffId);
-      if (updated && selectedBadgeStaff?.id === staffId) {
-        setSelectedBadgeStaff(updated);
-      }
     }
   };
 
@@ -434,11 +421,11 @@ export const StaffView: React.FC<StaffViewProps> = ({
                       {/* Action buttons */}
                       <td className="py-3.5 px-4 text-right">
                         <div className="inline-flex items-center gap-1">
-                          {/* QR Code & ID Badge Print Modal */}
+                          {/* Barcode ID Badge Print Modal */}
                           <button
                             type="button"
                             onClick={() => setSelectedBadgeStaff(staff)}
-                            title="Print ID Badge & QR Code Card"
+                            title="Print Staff Barcode ID Badge Card"
                             className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 rounded-lg transition-colors border border-indigo-200/80 dark:border-indigo-800/80 shadow-2xs"
                           >
                             <Printer className="w-3.5 h-3.5" />
@@ -750,7 +737,6 @@ export const StaffView: React.FC<StaffViewProps> = ({
         departments={departments}
         shifts={shifts}
         onClose={() => setSelectedBadgeStaff(null)}
-        onRegenerateQr={handleRegenerateQr}
       />
     </div>
   );

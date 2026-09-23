@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Volume2, VolumeX, ShieldCheck, Lock, QrCode, Sun, Moon, Maximize, Minimize, LayoutDashboard } from 'lucide-react';
+import { Menu, Volume2, VolumeX, ShieldCheck, Lock, Barcode, ScanBarcode, Sun, Moon, Maximize, Minimize, LayoutDashboard } from 'lucide-react';
 import { NavTab } from './Navigation';
 import { storage } from '../services/storage';
 import { getStoredTheme, setTheme, ThemeMode } from '../utils/theme';
@@ -18,7 +18,7 @@ const TAB_TITLES: Record<NavTab, { title: string; subtitle: string }> = {
   staff: { title: 'Staff Directory', subtitle: 'Manage staff profiles, department assignments, photos, and ID badges' },
   departments: { title: 'Departments', subtitle: 'Structure organizational units, leadership, and staff distribution' },
   shifts: { title: 'Shifts & Rosters', subtitle: 'Configure operational schedules, grace periods, and punctuality rules' },
-  scanner: { title: 'Attendance Kiosk Terminal', subtitle: 'USB Barcode & Camera QR scanner for instant staff clock-in / clock-out' },
+  scanner: { title: 'Staff Barcode Terminal', subtitle: 'Handheld USB Barcode laser scanner and camera reader for staff clock-in / clock-out' },
   records: { title: 'Attendance Records', subtitle: 'Detailed chronological logs, manual punch adjustments, and time sheets' },
   reports: { title: 'Reports & Analytics', subtitle: 'Comprehensive attendance rates, punctuality breakdowns, and CSV export' },
   settings: { title: 'System Settings', subtitle: 'Organization profile, theme preference, audio alerts, and database backup' },
@@ -114,7 +114,7 @@ export const Header: React.FC<HeaderProps> = ({
       {isKioskMode ? (
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-linear-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white shadow-md shadow-indigo-500/30">
-            <QrCode className="w-5 h-5" />
+            <Barcode className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -123,11 +123,11 @@ export const Header: React.FC<HeaderProps> = ({
               </h1>
               <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Kiosk Terminal
+                Barcode Terminal
               </span>
             </div>
             <p className="text-[11px] text-slate-400 hidden sm:block mt-0.5">
-              Staff Attendance Station • Main menu locked
+              Staff Barcode Station • Main menu locked
             </p>
           </div>
         </div>
@@ -243,10 +243,10 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={() => setActiveTab('scanner')}
               className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 rounded-xl transition-colors shadow-2xs"
-              title="Switch to Kiosk / Staff Clocking Mode (Hides main menu)"
+              title="Switch to Barcode Kiosk / Staff Clocking Mode (Hides main menu)"
             >
-              <QrCode className="w-3.5 h-3.5" />
-              <span>Enter Kiosk Mode</span>
+              <ScanBarcode className="w-3.5 h-3.5" />
+              <span>Enter Barcode Kiosk</span>
             </button>
 
             {isAdmin ? (

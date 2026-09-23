@@ -57,7 +57,7 @@ export interface AttendanceRecord {
   lateMinutes?: number;
   totalWorkMinutes?: number;
   notes?: string;
-  verifiedBy: 'qr_scan' | 'manual_admin';
+  verifiedBy: 'barcode_scan' | 'qr_scan' | 'manual_admin';
 }
 
 export interface SystemSettings {

@@ -107,17 +107,17 @@ const CHAPTERS: Chapter[] = [
     duration: 40,
     subtitle: 'Navigate to SSL/TLS Status in cPanel and click "Run AutoSSL".',
     voiceText:
-      'Step five: Modern web browsers strictly block camera access for QR scanning on unencrypted HTTP. Return to your cPanel dashboard, search for SSL/TLS Status, and click Run AutoSSL. A free SSL certificate with a green padlock will be installed within minutes.',
-    keyTakeaway: 'HTTPS is strictly required by browsers for camera QR code permissions.',
+      'Step five: Modern web browsers strictly block camera access for barcode scanning on unencrypted HTTP. Return to your cPanel dashboard, search for SSL/TLS Status, and click Run AutoSSL. A free SSL certificate with a green padlock will be installed within minutes.',
+    keyTakeaway: 'HTTPS is strictly required by browsers for camera barcode permissions.',
   },
   {
     id: 6,
     title: '7. Live Production Verification & Testing',
     startTime: 240,
     duration: 45,
-    subtitle: 'Visit your domain, allow camera permissions, test QR & USB barcode scanning.',
+    subtitle: 'Visit your domain, allow camera permissions, test USB barcode gun & camera scanning.',
     voiceText:
-      'Step six: Visit your live domain over HTTPS. Click Scan QR to grant camera permissions. Hold up any staff ID badge or plug in a USB handheld barcode scanner—it works plug and play! Your system is now in production.',
+      'Step six: Visit your live domain over HTTPS. Click Staff Barcode Terminal. Hold up any staff barcode ID badge or plug in a USB handheld barcode scanner—it works plug and play! Your system is now in production.',
     keyTakeaway: 'USB Barcode Scanners work without drivers; periodic JSON backups safeguard data.',
   },
 ];
@@ -551,7 +551,7 @@ export const VideoDeploymentGuide: React.FC = () => {
 
                 <div className="p-2.5 bg-rose-950/40 border border-rose-800/60 rounded-lg text-xs text-rose-200 flex items-center gap-2">
                   <Camera className="w-4 h-4 shrink-0 text-rose-400" />
-                  <span><strong>Important:</strong> Browsers disable camera QR scanners on unencrypted HTTP. HTTPS is mandatory!</span>
+                  <span><strong>Important:</strong> Browsers disable camera barcode readers on unencrypted HTTP. HTTPS is mandatory!</span>
                 </div>
               </div>
 
@@ -577,7 +577,7 @@ export const VideoDeploymentGuide: React.FC = () => {
                   <div className="w-10 h-10 mx-auto rounded-xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center">
                     <Camera className="w-5 h-5" />
                   </div>
-                  <div className="font-bold text-xs text-white">Camera QR Scanner</div>
+                  <div className="font-bold text-xs text-white">Camera Barcode Reader</div>
                   <p className="text-[11px] text-slate-400 leading-tight">
                     Tested and working with live video feed and audio feedback chimes.
                   </p>

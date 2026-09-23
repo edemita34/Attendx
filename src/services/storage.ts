@@ -326,7 +326,7 @@ function generateSeedAttendance(): AttendanceRecord[] {
         status,
         lateMinutes: isLateToday ? minuteOffset : undefined,
         totalWorkMinutes,
-        verifiedBy: 'qr_scan',
+        verifiedBy: 'barcode_scan',
       });
     });
   }
@@ -572,8 +572,8 @@ export class StorageService {
   }
 
   /**
-   * Primary Clock In / Clock Out scan resolver
-   * Supports scanning raw token (e.g. QR-EMP-1001-SEC-XXX) or staffId (EMP-1001)
+   * Primary Clock In / Clock Out Barcode scan resolver
+   * Supports scanning staffId barcode (EMP-1001) or raw token
    */
   processScan(scanPayload: string): ScanResult {
     const cleanPayload = scanPayload.trim();
@@ -581,7 +581,7 @@ export class StorageService {
       return {
         success: false,
         type: 'error',
-        message: 'Empty QR code scanned.',
+        message: 'Empty barcode scanned.',
         timestamp: new Date().toLocaleTimeString(),
       };
     }
@@ -590,13 +590,13 @@ export class StorageService {
     const normalizedInput = cleanPayload.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
 
     const staff = staffList.find((s) => {
-      if (s.qrCodeToken.toLowerCase() === cleanPayload.toLowerCase()) return true;
       if (s.staffId.toLowerCase() === cleanPayload.toLowerCase()) return true;
+      if (s.qrCodeToken && s.qrCodeToken.toLowerCase() === cleanPayload.toLowerCase()) return true;
       // Compare alphanumeric without hyphens/spaces (e.g. EMP1001 matches EMP-1001)
       const normStaffId = s.staffId.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
       if (normStaffId && normStaffId === normalizedInput) return true;
       // In case URL or prefix was attached
-      if (cleanPayload.includes(s.qrCodeToken)) return true;
+      if (s.qrCodeToken && cleanPayload.includes(s.qrCodeToken)) return true;
       return false;
     });
 
@@ -604,7 +604,7 @@ export class StorageService {
       return {
         success: false,
         type: 'error',
-        message: `Unrecognized Barcode or QR Code ("${cleanPayload}"). Staff record not found.`,
+        message: `Unrecognized Barcode ("${cleanPayload}"). Staff record not found.`,
         timestamp: new Date().toLocaleTimeString(),
       };
     }
@@ -712,7 +712,7 @@ export class StorageService {
       departmentId: staff.departmentId,
       status: isLate ? 'late' : 'on_time',
       lateMinutes: isLate ? lateMinutes : undefined,
-      verifiedBy: 'qr_scan',
+      verifiedBy: 'barcode_scan',
     };
 
     records.unshift(newRecord);

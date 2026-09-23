@@ -291,7 +291,7 @@ export const DeploymentGuideModal: React.FC<DeploymentGuideModalProps> = ({
                 <li className="space-y-1.5">
                   <span className="font-bold">Enable SSL Certificate (HTTPS):</span>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">
-                    Under cPanel &gt; <strong>SSL/TLS Status</strong>, activate free <strong>AutoSSL</strong>. Modern browsers block webcam QR scanners on unencrypted HTTP.
+                    Under cPanel &gt; <strong>SSL/TLS Status</strong>, activate free <strong>AutoSSL</strong>. Modern browsers block webcam barcode readers on unencrypted HTTP.
                   </p>
                 </li>
               </ol>
@@ -416,7 +416,7 @@ CMD ["nginx", "-g", "daemon off;"]`}
                     <span>HTTPS / SSL Mandatory for Camera</span>
                   </h4>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                    Browsers will disable the webcam QR code scanner on unencrypted HTTP. Always ensure your domain has an active SSL certificate (HTTPS).
+                    Browsers will disable the webcam barcode reader on unencrypted HTTP. Always ensure your domain has an active SSL certificate (HTTPS). USB laser scanners work on both HTTP and HTTPS.
                   </p>
                 </div>
 

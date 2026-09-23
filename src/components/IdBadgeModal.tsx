@@ -1,29 +1,24 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X,
   Download,
   Printer,
-  QrCode,
   Building,
   Clock,
   Briefcase,
-  RefreshCw,
   ScanBarcode,
+  Barcode,
   User,
   ShieldCheck,
   CreditCard,
   Scissors,
   CheckCircle2,
-  Sparkles,
   Phone,
   Mail,
-  Palette,
-  Eye,
 } from 'lucide-react';
 import { Staff, Department, Shift } from '../types';
-import { generateQrDataUrl, downloadImage } from '../utils/qrcode';
-import { generateBarcodeSvg } from '../utils/barcode';
+import { generateBarcodeSvg, downloadBarcodePng } from '../utils/barcode';
 import { storage } from '../services/storage';
 
 interface IdBadgeModalProps {
@@ -32,7 +27,6 @@ interface IdBadgeModalProps {
   shifts: Shift[];
   isOpen: boolean;
   onClose: () => void;
-  onRegenerateQr?: (staffId: string) => void;
 }
 
 type BadgeOrientation = 'portrait' | 'landscape' | 'double';
@@ -44,21 +38,13 @@ export const IdBadgeModal: React.FC<IdBadgeModalProps> = ({
   shifts,
   isOpen,
   onClose,
-  onRegenerateQr,
 }) => {
-  const [qrUrl, setQrUrl] = useState<string>('');
   const [orientation, setOrientation] = useState<BadgeOrientation>('portrait');
   const [badgeTheme, setBadgeTheme] = useState<BadgeTheme>('navy');
   const [showCutGuides, setShowCutGuides] = useState<boolean>(true);
   const [showLanyardGuide, setShowLanyardGuide] = useState<boolean>(true);
   const [isCopied, setIsCopied] = useState<boolean>(false);
   const settings = storage.getSettings();
-
-  useEffect(() => {
-    if (staff) {
-      generateQrDataUrl(staff.qrCodeToken, 400).then((url) => setQrUrl(url));
-    }
-  }, [staff, staff?.qrCodeToken]);
 
   // Manage print isolation class on body
   useEffect(() => {
@@ -76,20 +62,38 @@ export const IdBadgeModal: React.FC<IdBadgeModalProps> = ({
 
   const dept = departments.find((d) => d.id === staff.departmentId);
   const shift = shifts.find((s) => s.id === staff.shiftId);
-  const barcodeSvg = generateBarcodeSvg(staff.staffId, 36);
 
-  const handleDownloadQr = () => {
-    if (qrUrl) {
-      downloadImage(qrUrl, `${staff.staffId}_${staff.fullName.replace(/\s+/g, '_')}_QR.png`);
-    }
+  // High-density Code 39 Barcode for Portrait (taller bars for laser scanners)
+  const portraitBarcodeSvg = generateBarcodeSvg(staff.staffId, 54, {
+    showText: true,
+    padding: 10,
+    narrowWidth: 2,
+    wideWidth: 5,
+    gap: 2,
+  });
+
+  // Code 39 Barcode for Landscape
+  const landscapeBarcodeSvg = generateBarcodeSvg(staff.staffId, 52, {
+    showText: true,
+    padding: 8,
+    narrowWidth: 2,
+    wideWidth: 5,
+    gap: 2,
+  });
+
+  const handleDownloadBarcode = () => {
+    downloadBarcodePng(
+      staff.staffId,
+      `${staff.staffId}_${staff.fullName.replace(/\s+/g, '_')}_Barcode.png`
+    );
   };
 
   const handlePrint = () => {
     window.print();
   };
 
-  const handleCopyToken = () => {
-    navigator.clipboard.writeText(staff.qrCodeToken).then(() => {
+  const handleCopyId = () => {
+    navigator.clipboard.writeText(staff.staffId).then(() => {
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
     });
@@ -161,7 +165,7 @@ export const IdBadgeModal: React.FC<IdBadgeModalProps> = ({
       {/* Photo & Staff Identity Block */}
       <div className="py-3 flex flex-col items-center text-center">
         {/* Photo Portrait */}
-        <div className="relative w-24 h-24 rounded-2xl overflow-hidden border-2 border-indigo-400/40 shadow-md bg-slate-800 shrink-0 mb-3">
+        <div className="relative w-24 h-24 rounded-2xl overflow-hidden border-2 border-indigo-400/40 shadow-md bg-slate-800 shrink-0 mb-2.5">
           {staff.avatarUrl ? (
             <img
               src={staff.avatarUrl}
@@ -189,7 +193,7 @@ export const IdBadgeModal: React.FC<IdBadgeModalProps> = ({
         </div>
 
         {/* Department Badge */}
-        <div className="mt-1.5 flex items-center justify-center gap-1.5 text-[11px] font-medium">
+        <div className="mt-1 flex items-center justify-center gap-1.5 text-[11px] font-medium">
           <span
             className="w-2 h-2 rounded-full shrink-0"
             style={{ backgroundColor: dept?.color || '#0284c7' }}
@@ -200,7 +204,7 @@ export const IdBadgeModal: React.FC<IdBadgeModalProps> = ({
       </div>
 
       {/* PROMINENT STAFF FULL ID BANNER */}
-      <div className={`py-1.5 px-3 rounded-xl text-center mb-3 ${staffIdBannerClass}`}>
+      <div className={`py-1.5 px-3 rounded-xl text-center mb-2.5 ${staffIdBannerClass}`}>
         <span className="text-[9px] font-extrabold uppercase tracking-widest block text-indigo-500 dark:text-indigo-300">
           Official Staff ID
         </span>
@@ -209,49 +213,29 @@ export const IdBadgeModal: React.FC<IdBadgeModalProps> = ({
         </span>
       </div>
 
-      {/* ATTENDANCE QR CODE & BARCODE CONTAINER */}
+      {/* ATTENDANCE BARCODE CONTAINER (REPLACING QR CODE) */}
       <div className="bg-white rounded-2xl p-3 shadow-md text-slate-900 border border-slate-200">
-        <div className="flex items-center gap-3">
-          {/* QR Code Image */}
-          <div className="relative shrink-0 w-22 h-22 bg-white rounded-lg p-1 border border-slate-200 flex items-center justify-center">
-            {qrUrl ? (
-              <img
-                src={qrUrl}
-                alt={`Attendance QR for ${staff.fullName}`}
-                className="w-full h-full object-contain"
-              />
-            ) : (
-              <div className="w-full h-full bg-slate-100 flex items-center justify-center">
-                <QrCode className="w-6 h-6 animate-pulse text-slate-400" />
-              </div>
-            )}
+        <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100">
+          <div className="flex items-center gap-1 text-emerald-600 text-[10px] font-bold uppercase tracking-wider">
+            <CheckCircle2 className="w-3 h-3" />
+            <span>Barcode Attendance Pass</span>
           </div>
-
-          {/* QR Info and Scan Tip */}
-          <div className="flex-1 text-left min-w-0">
-            <div className="flex items-center gap-1 text-emerald-600 text-[10px] font-bold uppercase tracking-wider">
-              <CheckCircle2 className="w-3 h-3" />
-              <span>Attendance Pass</span>
-            </div>
-            <span className="text-xs font-black text-slate-900 block leading-tight mt-0.5">
-              Clock In / Out
-            </span>
-            <p className="text-[10px] text-slate-500 leading-tight mt-1 line-clamp-2">
-              Present to kiosk scanner or camera.
-            </p>
-            <span className="text-[9px] font-mono text-indigo-600 block mt-1 font-bold">
-              *{staff.staffId}*
-            </span>
-          </div>
+          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+            Clock In / Out
+          </span>
         </div>
 
-        {/* 1D Linear Barcode for USB Laser Scanners */}
-        <div className="mt-2 pt-2 border-t border-slate-100">
+        {/* High-Resolution Code 39 Barcode */}
+        <div className="py-1 flex flex-col items-center justify-center">
           <div
             className="w-full flex justify-center text-slate-900"
-            dangerouslySetInnerHTML={{ __html: barcodeSvg }}
+            dangerouslySetInnerHTML={{ __html: portraitBarcodeSvg }}
           />
         </div>
+
+        <p className="text-[9px] text-center text-slate-500 mt-1 font-medium">
+          Scan with handheld USB laser gun or kiosk terminal reader
+        </p>
       </div>
 
       {/* Footer Details: Shift & Validity */}
@@ -293,7 +277,7 @@ export const IdBadgeModal: React.FC<IdBadgeModalProps> = ({
               {settings.organizationName || 'StaffSync'}
             </span>
             <span className={`text-[9px] uppercase tracking-widest font-semibold block mt-0.5 ${textSubtleClass}`}>
-              Official Staff ID Pass
+              Staff Barcode ID Pass
             </span>
           </div>
         </div>
@@ -310,7 +294,7 @@ export const IdBadgeModal: React.FC<IdBadgeModalProps> = ({
         </div>
       </div>
 
-      {/* Main Grid: Photo & Info on Left, QR Code on Right */}
+      {/* Main Grid: Photo & Info on Left, Large Scannable Barcode on Right */}
       <div className="grid grid-cols-12 gap-4 py-2.5 items-center">
         {/* Photo */}
         <div className="col-span-3 flex justify-center">
@@ -331,7 +315,7 @@ export const IdBadgeModal: React.FC<IdBadgeModalProps> = ({
         </div>
 
         {/* Staff Details */}
-        <div className="col-span-5 space-y-1">
+        <div className="col-span-4 space-y-1">
           <h3 className="text-lg font-black tracking-tight leading-tight line-clamp-1">
             {staff.fullName}
           </h3>
@@ -351,35 +335,23 @@ export const IdBadgeModal: React.FC<IdBadgeModalProps> = ({
             <Clock className="w-3 h-3 shrink-0" />
             <span>{shift?.name || 'Shift'} ({shift?.startTime}-{shift?.endTime})</span>
           </div>
-
-          {/* Barcode representation */}
-          <div className="pt-1.5">
-            <div
-              className="w-full max-w-[170px] text-slate-900 bg-white p-1 rounded-sm border border-slate-200"
-              dangerouslySetInnerHTML={{ __html: barcodeSvg }}
-            />
-          </div>
         </div>
 
-        {/* Large Attendance QR Code on Right */}
-        <div className="col-span-4 flex justify-end">
-          <div className="bg-white p-2.5 rounded-2xl shadow-md border border-slate-200 text-slate-900 flex flex-col items-center text-center w-full max-w-[130px]">
-            <div className="w-22 h-22 bg-white rounded-lg flex items-center justify-center">
-              {qrUrl ? (
-                <img
-                  src={qrUrl}
-                  alt={`QR for ${staff.fullName}`}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <QrCode className="w-8 h-8 animate-pulse text-slate-400" />
-              )}
+        {/* Dedicated Barcode Attendance Box on Right */}
+        <div className="col-span-5 flex justify-end">
+          <div className="bg-white p-2.5 rounded-2xl shadow-md border border-slate-200 text-slate-900 flex flex-col items-center text-center w-full">
+            <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 uppercase tracking-wider mb-1">
+              <CheckCircle2 className="w-3 h-3" />
+              <span>Barcode Pass</span>
             </div>
-            <span className="text-[9px] font-bold text-slate-900 mt-1 uppercase tracking-tight block">
-              Scan For Attendance
-            </span>
-            <span className="text-[8px] font-mono text-indigo-600 block font-bold">
-              {staff.staffId}
+            
+            <div
+              className="w-full flex justify-center text-slate-900"
+              dangerouslySetInnerHTML={{ __html: landscapeBarcodeSvg }}
+            />
+
+            <span className="text-[8px] text-slate-500 font-medium mt-1">
+              Scan barcode to clock in & out
             </span>
           </div>
         </div>
@@ -388,7 +360,7 @@ export const IdBadgeModal: React.FC<IdBadgeModalProps> = ({
       {/* Footer */}
       <div className={`pt-2 border-t ${cardHeaderBorder} flex items-center justify-between text-[10px] font-mono ${textSubtleClass}`}>
         <span>Joined: {new Date(staff.joinedDate).toLocaleDateString()}</span>
-        <span>Electronic Verification Compatible</span>
+        <span>Standard Code 39 Barcode</span>
         <span className="text-emerald-500 font-semibold">Authorized Personnel</span>
       </div>
     </div>
@@ -407,7 +379,7 @@ export const IdBadgeModal: React.FC<IdBadgeModalProps> = ({
       {/* Magnetic Stripe simulation */}
       <div className="-mx-5 -mt-5 mb-4 h-10 bg-slate-950 border-b border-white/20 flex items-center justify-center">
         <span className="text-[9px] font-mono tracking-widest text-slate-500">
-          MAGNETIC / RFID ENCODED TRACK
+          BARCODE & MAGNETIC IDENTIFICATION TRACK
         </span>
       </div>
 
@@ -417,7 +389,7 @@ export const IdBadgeModal: React.FC<IdBadgeModalProps> = ({
             Terms & Conditions of Use
           </span>
           <p className={`text-[10px] leading-relaxed mt-1 ${textMutedClass}`}>
-            This card is the property of <strong>{settings.organizationName || 'StaffSync'}</strong> and is issued for identification and access verification purposes only. It is strictly non-transferable and must be surrendered upon termination of employment.
+            This barcode card is the property of <strong>{settings.organizationName || 'StaffSync'}</strong> and is issued for employee identification and attendance recording. It is strictly non-transferable and must be presented when scanning in or out.
           </p>
         </div>
 
@@ -463,19 +435,19 @@ export const IdBadgeModal: React.FC<IdBadgeModalProps> = ({
         <div className="id-badge-modal-header px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-800/50">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-              <CreditCard className="w-5 h-5" />
+              <ScanBarcode className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                  Staff Official ID Badge
+                  Staff Barcode ID Badge
                 </h2>
                 <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
                   {staff.staffId}
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Ready for physical card printing with QR attendance code and laser barcode
+                Ready for physical card printing with scannable Code 39 laser barcode and Full Staff ID
               </p>
             </div>
           </div>
@@ -635,32 +607,20 @@ export const IdBadgeModal: React.FC<IdBadgeModalProps> = ({
         {/* Quick Instructions & USB Barcode Compatibility (Hidden in Print) */}
         <div className="id-badge-instructions px-6 py-3 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <ScanBarcode className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <Barcode className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
             <span>
-              Contains <strong>Full Staff ID ({staff.staffId})</strong> and <strong>Attendance QR Code</strong> compatible with cameras and USB laser scanners.
+              Contains <strong>Full Staff ID ({staff.staffId})</strong> and standard <strong>Code 39 Linear Barcode</strong> compatible with handheld USB laser guns and terminal scanners.
             </span>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
             <button
               type="button"
-              onClick={handleCopyToken}
+              onClick={handleCopyId}
               className="text-[11px] text-slate-600 dark:text-slate-300 hover:text-indigo-600 font-medium transition-colors"
             >
-              {isCopied ? 'Token Copied!' : 'Copy Token'}
+              {isCopied ? 'Staff ID Copied!' : 'Copy Staff ID'}
             </button>
-
-            {onRegenerateQr && (
-              <button
-                type="button"
-                onClick={() => onRegenerateQr(staff.id)}
-                className="inline-flex items-center gap-1 text-[11px] text-slate-600 dark:text-slate-300 hover:text-indigo-600 font-medium transition-colors"
-                title="Generate a fresh security token"
-              >
-                <RefreshCw className="w-3 h-3" />
-                <span>Regenerate QR</span>
-              </button>
-            )}
           </div>
         </div>
 
@@ -681,11 +641,11 @@ export const IdBadgeModal: React.FC<IdBadgeModalProps> = ({
 
             <button
               type="button"
-              onClick={handleDownloadQr}
+              onClick={handleDownloadBarcode}
               className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl transition-colors shadow-2xs"
             >
               <Download className="w-3.5 h-3.5 text-slate-500" />
-              <span>Download QR</span>
+              <span>Download Barcode</span>
             </button>
 
             <button

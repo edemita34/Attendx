@@ -5,7 +5,7 @@ import {
   ClockAlert,
   UserX,
   Radio,
-  QrCode,
+  ScanBarcode,
   UserPlus,
   ArrowRight,
   TrendingUp,
@@ -90,7 +90,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, onOpen
             Daily Attendance Monitor
           </h2>
           <p className="text-xs sm:text-sm text-slate-300 max-w-xl">
-            Real-time synchronization for employee shifts, USB Barcode & QR clocking terminals, and automated punctuality audit logs.
+            Real-time synchronization for employee shifts, USB Barcode clocking terminals, and automated punctuality audit logs.
           </p>
         </div>
 
@@ -99,8 +99,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, onOpen
             onClick={() => onNavigate('scanner')}
             className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-md shadow-indigo-600/30 transition-all hover:scale-[1.02] active:scale-95"
           >
-            <QrCode className="w-4 h-4" />
-            <span>Open Attendance Kiosk</span>
+            <ScanBarcode className="w-4 h-4" />
+            <span>Open Barcode Kiosk</span>
           </button>
           <button
             onClick={onOpenAddStaff}
@@ -389,8 +389,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, onOpen
               onClick={() => onNavigate('scanner')}
               className="mt-4 w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors shadow-xs"
             >
-              <QrCode className="w-3.5 h-3.5" />
-              <span>Open Scanner Terminal</span>
+              <ScanBarcode className="w-3.5 h-3.5" />
+              <span>Open Barcode Terminal</span>
             </button>
           </div>
         </div>

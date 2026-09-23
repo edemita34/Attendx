@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  QrCode,
+  ScanBarcode,
+  Barcode,
   Camera,
   Upload,
   CheckCircle2,
@@ -8,14 +9,10 @@ import {
   AlertTriangle,
   RotateCcw,
   Sparkles,
-  Volume2,
   Clock,
   Building,
-  Briefcase,
   Play,
-  UserCheck,
   ShieldAlert,
-  ScanBarcode,
   Usb,
   User,
   Radio,
@@ -26,6 +23,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import confetti from 'canvas-confetti';
 import { storage } from '../../services/storage';
 import { sound } from '../../utils/audio';
+import { generateBarcodeSvg } from '../../utils/barcode';
 import { Staff, Department, Shift, ScanResult } from '../../types';
 
 interface ScanQrViewProps {
@@ -46,7 +44,7 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
   const [manualInput, setManualInput] = useState<string>('');
   const [selectedStaffId, setSelectedStaffId] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [lastScannedMethod, setLastScannedMethod] = useState<'camera' | 'usb_barcode' | 'file' | 'simulator'>('camera');
+  const [lastScannedMethod, setLastScannedMethod] = useState<'camera' | 'usb_barcode' | 'file' | 'simulator'>('usb_barcode');
   const [usbScannerIndicator, setUsbScannerIndicator] = useState<boolean>(false);
 
   const [staffList, setStaffList] = useState<Staff[]>([]);
@@ -54,7 +52,7 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
   const [shifts, setShifts] = useState<Shift[]>([]);
 
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
-  const scannerContainerId = 'html5-qr-code-scanner-element';
+  const scannerContainerId = 'html5-barcode-scanner-element';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const countdownTimerRef = useRef<number | null>(null);
   const usbInputRef = useRef<HTMLInputElement>(null);
@@ -74,8 +72,8 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
     return storage.subscribe(loadData);
   }, []);
 
-  // Process decoded QR text or Barcode
-  const handleScanText = useCallback((text: string, method: 'camera' | 'usb_barcode' | 'file' | 'simulator' = 'camera') => {
+  // Process decoded Barcode text
+  const handleScanText = useCallback((text: string, method: 'camera' | 'usb_barcode' | 'file' | 'simulator' = 'usb_barcode') => {
     if (isProcessing) return;
     setIsProcessing(true);
     setLastScannedMethod(method);
@@ -109,7 +107,7 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
   // Hardware scanners act as an HID keyboard: bursts of characters within < 50ms followed by Enter
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is actively typing in a normal text input (except our dedicated usbInputRef)
+      // Ignore if user is typing in a normal form input (except our dedicated usbInputRef)
       const target = e.target as HTMLElement;
       const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA');
       if (isInput && target !== usbInputRef.current) {
@@ -132,8 +130,8 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
           handleScanText(buffered, 'usb_barcode');
         }
       } else if (e.key.length === 1) {
-        // If keystroke arrived within 60ms of previous, or if buffer is starting
-        if (timeDiff > 80 && barcodeBufferRef.current.length > 0) {
+        // If keystroke arrived within 75ms of previous, or if buffer is starting
+        if (timeDiff > 90 && barcodeBufferRef.current.length > 0) {
           // Typed too slowly - reset buffer as likely human typing
           barcodeBufferRef.current = '';
         }
@@ -191,7 +189,7 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
     setResetCountdown(0);
   };
 
-  // Start HTML5 Camera QR Scanner
+  // Start Camera Barcode Scanner (Exclusively linear 1D barcode formats)
   const startCameraScanner = async () => {
     setCameraError(null);
     try {
@@ -199,29 +197,33 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
         await stopCameraScanner();
       }
 
-      const qrScanner = new Html5Qrcode(scannerContainerId, {
+      const barcodeScanner = new Html5Qrcode(scannerContainerId, {
         formatsToSupport: [
-          Html5QrcodeSupportedFormats.QR_CODE,
           Html5QrcodeSupportedFormats.CODE_128,
           Html5QrcodeSupportedFormats.CODE_39,
           Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODABAR,
+          Html5QrcodeSupportedFormats.ITF,
         ],
         verbose: false,
       });
-      html5QrCodeRef.current = qrScanner;
+      html5QrCodeRef.current = barcodeScanner;
 
-      await qrScanner.start(
+      await barcodeScanner.start(
         { facingMode: 'environment' },
         {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0,
+          fps: 12,
+          qrbox: { width: 320, height: 160 },
+          aspectRatio: 1.777,
         },
         (decodedText) => {
           handleScanText(decodedText, 'camera');
         },
         () => {
-          // Frame scan error / empty frame - ignore
+          // Frame scan empty - ignore
         }
       );
       setCameraActive(true);
@@ -229,7 +231,7 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
       console.warn('Camera start error:', err);
       const errMsg = err instanceof Error ? err.message : String(err);
       setCameraError(
-        `Unable to access camera (${errMsg}). You can connect a USB Barcode Scanner, upload a QR file, or use the Instant Staff Simulator below.`
+        `Unable to access camera (${errMsg}). You can plug in a USB Barcode Scanner gun, enter the staff ID above, or use the Simulator below.`
       );
       setCameraActive(false);
     }
@@ -248,24 +250,26 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
     setCameraActive(false);
   };
 
-  // File Upload QR Scanner
+  // File Upload Barcode Scanner
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
-      let qrScanner = html5QrCodeRef.current;
-      if (!qrScanner) {
-        qrScanner = new Html5Qrcode(scannerContainerId, {
+      let barcodeScanner = html5QrCodeRef.current;
+      if (!barcodeScanner) {
+        barcodeScanner = new Html5Qrcode(scannerContainerId, {
           formatsToSupport: [
-            Html5QrcodeSupportedFormats.QR_CODE,
             Html5QrcodeSupportedFormats.CODE_128,
             Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
           ],
           verbose: false,
         });
       }
-      const decodedText = await qrScanner.scanFile(file, true);
+      const decodedText = await barcodeScanner.scanFile(file, true);
       handleScanText(decodedText, 'file');
     } catch {
       const settings = storage.getSettings();
@@ -273,7 +277,7 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
       setScanResult({
         success: false,
         type: 'error',
-        message: 'Could not detect a valid Barcode or QR code in the uploaded image. Please try a clearer image.',
+        message: 'Could not detect a valid linear Barcode (Code 39 / Code 128) in the uploaded image. Please try a clearer picture.',
         timestamp: new Date().toLocaleTimeString(),
       });
     } finally {
@@ -281,12 +285,12 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
     }
   };
 
-  // Instant Staff Simulator Punch
+  // Instant Staff Simulator Punch using Staff ID Barcode
   const handleSimulateStaffScan = () => {
     if (!selectedStaffId) return;
     const staff = staffList.find((s) => s.id === selectedStaffId);
     if (staff) {
-      handleScanText(staff.qrCodeToken, 'simulator');
+      handleScanText(staff.staffId, 'simulator');
     }
   };
 
@@ -295,7 +299,7 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
     const activeStaff = staffList.filter((s) => s.status === 'active');
     if (activeStaff.length === 0) return;
     const random = activeStaff[Math.floor(Math.random() * activeStaff.length)];
-    handleScanText(random.qrCodeToken, 'simulator');
+    handleScanText(random.staffId, 'simulator');
   };
 
   const handleManualSubmit = (e: React.FormEvent) => {
@@ -317,14 +321,14 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                Staff Kiosk Terminal
+                Staff Barcode Terminal
               </span>
               <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
                 Main Menu Hidden
               </span>
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              Distraction-free clock-in terminal. Administrative navigation is hidden for staff privacy and terminal protection.
+              Dedicated barcode clock-in terminal. Administrative navigation is hidden for staff privacy and terminal protection.
             </p>
           </div>
         </div>
@@ -361,7 +365,7 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                Hardware USB Barcode Scanner
+                Hardware USB Barcode Laser Gun
               </span>
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
@@ -369,38 +373,41 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
               </span>
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Pull trigger on any handheld USB laser gun or 2D scanner. Keystrokes are captured automatically.
+              Pull the trigger on any handheld USB laser gun or CCD scanner. ID barcodes are captured instantly.
             </p>
           </div>
         </div>
 
         {/* Dedicated Scanner Focus Input */}
         <div className="flex items-center gap-2">
-          <input
-            ref={usbInputRef}
-            type="text"
-            value={manualInput}
-            onChange={(e) => setManualInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleManualSubmit(e);
-              }
-            }}
-            placeholder="Scan USB Barcode..."
-            className="w-44 sm:w-48 px-3 py-1.5 text-xs font-mono rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-          />
+          <div className="relative">
+            <Barcode className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <input
+              ref={usbInputRef}
+              type="text"
+              value={manualInput}
+              onChange={(e) => setManualInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleManualSubmit(e);
+                }
+              }}
+              placeholder="Scan or Enter Barcode..."
+              className="w-48 sm:w-56 pl-9 pr-3 py-1.5 text-xs font-mono rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
           <button
             type="button"
             onClick={handleManualSubmit}
             className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-colors shrink-0"
           >
-            Scan
+            Clock In/Out
           </button>
         </div>
       </div>
 
-      {/* Kiosk Mode Confirmation Banner Overlay */}
+      {/* Confirmation Screen */}
       {scanResult ? (
         <div
           className={`rounded-3xl p-6 sm:p-8 border shadow-xl transition-all duration-300 animate-in zoom-in-95 ${
@@ -464,7 +471,7 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
 
                   <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
                     {lastScannedMethod === 'usb_barcode' && <Usb className="w-3 h-3 text-indigo-400" />}
-                    {lastScannedMethod === 'usb_barcode' ? 'USB Scanner' : lastScannedMethod === 'camera' ? 'Camera' : 'Direct'}
+                    {lastScannedMethod === 'usb_barcode' ? 'USB Barcode Gun' : lastScannedMethod === 'camera' ? 'Camera Barcode' : 'Direct Entry'}
                   </span>
                 </div>
                 <p className="text-sm font-semibold text-slate-200 mt-1">
@@ -484,7 +491,7 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
             </div>
           </div>
 
-          {/* Staff Details (with official Staff Photo) */}
+          {/* Staff Details with Photo and Verified Barcode */}
           {scanResult.staff && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/5 rounded-2xl p-6 border border-white/10 mb-6">
               <div className="flex items-center gap-4">
@@ -584,59 +591,69 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-white text-slate-900 hover:bg-slate-100 transition-colors shadow-md"
             >
               <RotateCcw className="w-4 h-4" />
-              <span>Scan Next Now</span>
+              <span>Scan Next Barcode</span>
             </button>
           </div>
         </div>
       ) : (
-        /* Standby Scanner Kiosk Interface */
+        /* Standby Barcode Kiosk Interface */
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800 shadow-md">
           <div className="text-center max-w-lg mx-auto mb-6">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 mb-3 shadow-xs">
-              <QrCode className="w-7 h-7" />
+              <ScanBarcode className="w-7 h-7" />
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-              Attendance Kiosk Terminal
+              Attendance Barcode Terminal
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Supports <strong>USB Barcode Handheld Guns</strong>, <strong>Camera QR Scanning</strong>, or Digital Pass Upload.
+              Scan your printed staff ID barcode with a <strong>USB Laser Gun</strong> or the <strong>Camera Barcode Reader</strong> to clock in or out.
             </p>
           </div>
 
           {/* Camera Viewport or Start Camera Placeholder */}
-          <div className="max-w-md mx-auto relative rounded-2xl overflow-hidden border-2 border-slate-200 dark:border-slate-800 bg-slate-950 shadow-inner aspect-square flex flex-col items-center justify-center">
-            {/* The element HTML5-QRCode mounts into */}
+          <div className="max-w-md mx-auto relative rounded-2xl overflow-hidden border-2 border-slate-200 dark:border-slate-800 bg-slate-950 shadow-inner aspect-video flex flex-col items-center justify-center">
+            {/* The element HTML5-Barcode mounts into */}
             <div
               id={scannerContainerId}
               className={`w-full h-full ${cameraActive ? 'block' : 'hidden'}`}
             />
 
+            {/* Red Laser Scanning Guide Line overlay when camera is active */}
+            {cameraActive && (
+              <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 pointer-events-none z-10">
+                <div className="h-0.5 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,1)] animate-pulse" />
+                <span className="text-[10px] text-red-400 font-mono uppercase tracking-widest block text-center mt-1">
+                  Align Barcode with Red Line
+                </span>
+              </div>
+            )}
+
             {!cameraActive && (
-              <div className="p-8 text-center space-y-4">
-                <div className="w-16 h-16 mx-auto rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400">
-                  <Camera className="w-8 h-8" />
+              <div className="p-6 text-center space-y-3">
+                <div className="w-14 h-14 mx-auto rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400">
+                  <Barcode className="w-7 h-7" />
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-slate-200">
-                    Live Camera QR Reader
+                    Live Camera Barcode Reader
                   </p>
                   <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                    Activate camera to read physical ID cards or smartphone screens.
+                    Activate camera to scan printed staff ID card barcodes.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={startCameraScanner}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors shadow-md shadow-indigo-600/30"
+                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors shadow-md shadow-indigo-600/30"
                 >
                   <Camera className="w-4 h-4" />
-                  <span>Start Live Camera</span>
+                  <span>Start Camera Scanner</span>
                 </button>
               </div>
             )}
 
             {cameraActive && (
-              <div className="absolute bottom-4 left-0 right-0 flex justify-center z-10">
+              <div className="absolute bottom-3 left-0 right-0 flex justify-center z-20">
                 <button
                   type="button"
                   onClick={stopCameraScanner}
@@ -655,7 +672,7 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
             </div>
           )}
 
-          {/* Secondary Methods: Upload File */}
+          {/* Secondary Methods: Upload Barcode Image File */}
           <div className="max-w-md mx-auto mt-6 pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4">
             <div>
               <input
@@ -664,7 +681,7 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
                 accept="image/*"
                 onChange={handleFileUpload}
                 className="hidden"
-                id="qr-file-upload-input"
+                id="barcode-file-upload-input"
               />
               <button
                 type="button"
@@ -672,7 +689,7 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
                 className="w-full py-2.5 px-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
               >
                 <Upload className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                <span>Upload QR / Barcode Badge Image (PNG/JPEG)</span>
+                <span>Upload Barcode Image File (PNG/JPEG)</span>
               </button>
             </div>
           </div>
@@ -684,7 +701,7 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
         <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 mb-3">
           <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold text-xs uppercase tracking-wider">
             <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-            <span>Interactive Staff Punch Simulator (Instant Testing)</span>
+            <span>Staff Barcode Punch Simulator (Instant Testing)</span>
           </div>
           <button
             type="button"
@@ -699,9 +716,9 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
           <select
             value={selectedStaffId}
             onChange={(e) => setSelectedStaffId(e.target.value)}
-            className="w-full sm:flex-1 text-xs px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+            className="w-full sm:flex-1 text-xs px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-mono"
           >
-            <option value="">-- Choose any registered staff to simulate scan --</option>
+            <option value="">-- Select staff member to simulate barcode scan --</option>
             {staffList.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.staffId} - {s.fullName} ({departments.find((d) => d.id === s.departmentId)?.name || 'Dept'})
@@ -716,7 +733,7 @@ export const ScanQrView: React.FC<ScanQrViewProps> = ({
             className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-2xs whitespace-nowrap"
           >
             <Play className="w-3.5 h-3.5" />
-            <span>Simulate Scan</span>
+            <span>Simulate Barcode Scan</span>
           </button>
         </div>
       </div>

@@ -4,7 +4,8 @@ import {
   Users,
   Building2,
   CalendarClock,
-  QrCode,
+  Barcode,
+  ScanBarcode,
   ClipboardList,
   BarChart3,
   Settings,
@@ -56,8 +57,8 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'shifts' as NavTab, label: 'Shifts & Rosters', icon: CalendarClock },
     {
       id: 'scanner' as NavTab,
-      label: 'Kiosk / Staff Mode',
-      icon: QrCode,
+      label: 'Staff Barcode Kiosk',
+      icon: ScanBarcode,
       highlight: true,
     },
     { id: 'records' as NavTab, label: 'Attendance Records', icon: ClipboardList },
@@ -90,7 +91,7 @@ export const Navigation: React.FC<NavigationProps> = ({
         <div className="h-16 px-6 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-linear-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
-              <QrCode className="w-5 h-5" />
+              <Barcode className="w-5 h-5" />
             </div>
             <div>
               <h1 className="text-sm font-bold tracking-tight text-white">StaffSync</h1>
@@ -115,8 +116,8 @@ export const Navigation: React.FC<NavigationProps> = ({
                 : 'bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 border border-indigo-500/30'
             }`}
           >
-            <QrCode className="w-4 h-4" />
-            <span>Enter Kiosk / Staff Mode</span>
+            <ScanBarcode className="w-4 h-4" />
+            <span>Enter Barcode Kiosk Mode</span>
           </button>
         </div>
 
