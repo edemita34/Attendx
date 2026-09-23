@@ -110,6 +110,7 @@ const DEFAULT_STAFF: Staff[] = [
     status: 'active',
     qrCodeToken: 'QR-EMP-1001-SEC-78A9B2',
     qrCodeGeneratedAt: '2026-01-15T09:00:00.000Z',
+    avatarUrl: '/src/assets/images/avatar_lead_architect_1790158411177.jpg',
     joinedDate: '2026-01-15',
   },
   {
@@ -124,6 +125,7 @@ const DEFAULT_STAFF: Staff[] = [
     status: 'active',
     qrCodeToken: 'QR-EMP-1002-SEC-41C8F0',
     qrCodeGeneratedAt: '2026-01-18T10:00:00.000Z',
+    avatarUrl: '/src/assets/images/avatar_operations_supervisor_1790158425376.jpg',
     joinedDate: '2026-01-18',
   },
   {
@@ -138,6 +140,7 @@ const DEFAULT_STAFF: Staff[] = [
     status: 'active',
     qrCodeToken: 'QR-EMP-1003-SEC-92D3E1',
     qrCodeGeneratedAt: '2026-02-01T11:00:00.000Z',
+    avatarUrl: '/src/assets/images/avatar_clinical_specialist_1790158436944.jpg',
     joinedDate: '2026-02-01',
   },
   {
@@ -152,6 +155,7 @@ const DEFAULT_STAFF: Staff[] = [
     status: 'active',
     qrCodeToken: 'QR-EMP-1004-SEC-63F7A4',
     qrCodeGeneratedAt: '2026-02-05T08:30:00.000Z',
+    avatarUrl: '/src/assets/images/avatar_hr_officer_1790158448933.jpg',
     joinedDate: '2026-02-05',
   },
   {
@@ -490,6 +494,7 @@ export class StorageService {
     position: string;
     shiftId: string;
     staffId?: string;
+    avatarUrl?: string;
   }): Staff {
     const staffList = this.getStaff();
     const finalStaffId = data.staffId?.trim() || this.getNextStaffId();
@@ -507,6 +512,7 @@ export class StorageService {
       status: 'active',
       qrCodeToken: qrToken,
       qrCodeGeneratedAt: new Date().toISOString(),
+      avatarUrl: data.avatarUrl || undefined,
       joinedDate: new Date().toISOString().split('T')[0],
     };
 
@@ -581,15 +587,24 @@ export class StorageService {
     }
 
     const staffList = this.getStaff();
-    const staff = staffList.find(
-      (s) => s.qrCodeToken === cleanPayload || s.staffId.toLowerCase() === cleanPayload.toLowerCase()
-    );
+    const normalizedInput = cleanPayload.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+    const staff = staffList.find((s) => {
+      if (s.qrCodeToken.toLowerCase() === cleanPayload.toLowerCase()) return true;
+      if (s.staffId.toLowerCase() === cleanPayload.toLowerCase()) return true;
+      // Compare alphanumeric without hyphens/spaces (e.g. EMP1001 matches EMP-1001)
+      const normStaffId = s.staffId.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+      if (normStaffId && normStaffId === normalizedInput) return true;
+      // In case URL or prefix was attached
+      if (cleanPayload.includes(s.qrCodeToken)) return true;
+      return false;
+    });
 
     if (!staff) {
       return {
         success: false,
         type: 'error',
-        message: 'Unrecognized QR Code. Staff record not found.',
+        message: `Unrecognized Barcode or QR Code ("${cleanPayload}"). Staff record not found.`,
         timestamp: new Date().toLocaleTimeString(),
       };
     }

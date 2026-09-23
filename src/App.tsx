@@ -11,6 +11,7 @@ import { AttendanceRecordsView } from './components/views/AttendanceRecordsView'
 import { ReportsView } from './components/views/ReportsView';
 import { SettingsView } from './components/views/SettingsView';
 import { storage } from './services/storage';
+import { getStoredTheme, applyTheme } from './utils/theme';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
@@ -23,6 +24,10 @@ export default function App() {
   const [filterDeptForRecords, setFilterDeptForRecords] = useState<string>('all');
 
   useEffect(() => {
+    // Initialize user theme preference
+    const initialTheme = getStoredTheme();
+    applyTheme(initialTheme);
+
     setIsAdmin(storage.isAdminAuthenticated());
     return storage.subscribe(() => {
       setIsAdmin(storage.isAdminAuthenticated());
@@ -45,7 +50,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-150">
       {/* Sidebar Navigation */}
       <Navigation
         activeTab={activeTab}
@@ -59,7 +64,7 @@ export default function App() {
 
       {/* Main Content Area */}
       <div className="lg:pl-64 flex flex-col flex-1 min-w-0">
-        {/* Sticky Header */}
+        {/* Sticky Header with Theme & Kiosk Controls */}
         <Header
           activeTab={activeTab}
           setActiveTab={setActiveTab}

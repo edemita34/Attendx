@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   QrCode,
   Camera,
@@ -15,6 +15,10 @@ import {
   Play,
   UserCheck,
   ShieldAlert,
+  ScanBarcode,
+  Usb,
+  User,
+  Radio,
 } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import confetti from 'canvas-confetti';
@@ -30,6 +34,8 @@ export const ScanQrView: React.FC = () => {
   const [manualInput, setManualInput] = useState<string>('');
   const [selectedStaffId, setSelectedStaffId] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [lastScannedMethod, setLastScannedMethod] = useState<'camera' | 'usb_barcode' | 'file' | 'simulator'>('camera');
+  const [usbScannerIndicator, setUsbScannerIndicator] = useState<boolean>(false);
 
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -39,6 +45,11 @@ export const ScanQrView: React.FC = () => {
   const scannerContainerId = 'html5-qr-code-scanner-element';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const countdownTimerRef = useRef<number | null>(null);
+  const usbInputRef = useRef<HTMLInputElement>(null);
+
+  // USB Barcode Scanner hardware keystroke buffer
+  const barcodeBufferRef = useRef<string>('');
+  const lastKeyTimeRef = useRef<number>(0);
 
   const loadData = () => {
     setStaffList(storage.getStaff());
@@ -50,6 +61,79 @@ export const ScanQrView: React.FC = () => {
     loadData();
     return storage.subscribe(loadData);
   }, []);
+
+  // Process decoded QR text or Barcode
+  const handleScanText = useCallback((text: string, method: 'camera' | 'usb_barcode' | 'file' | 'simulator' = 'camera') => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    setLastScannedMethod(method);
+
+    const settings = storage.getSettings();
+    const result = storage.processScan(text);
+    setScanResult(result);
+
+    if (result.success) {
+      if (result.type === 'clock_in') {
+        if (settings.enableSound) sound.playClockInSuccess();
+        confetti({
+          particleCount: 45,
+          spread: 65,
+          origin: { y: 0.6 },
+          colors: ['#6366f1', '#10b981', '#38bdf8'],
+        });
+      } else if (result.type === 'clock_out') {
+        if (settings.enableSound) sound.playClockOutSuccess();
+      }
+    } else {
+      if (settings.enableSound) sound.playWarning();
+    }
+
+    setTimeout(() => {
+      setIsProcessing(false);
+    }, 1200);
+  }, [isProcessing]);
+
+  // USB Barcode Scanner Global Hardware Listener
+  // Hardware scanners act as an HID keyboard: bursts of characters within < 50ms followed by Enter
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is actively typing in a normal text input (except our dedicated usbInputRef)
+      const target = e.target as HTMLElement;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA');
+      if (isInput && target !== usbInputRef.current) {
+        return;
+      }
+
+      const now = Date.now();
+      const timeDiff = now - lastKeyTimeRef.current;
+      lastKeyTimeRef.current = now;
+
+      if (e.key === 'Enter') {
+        const buffered = barcodeBufferRef.current.trim();
+        barcodeBufferRef.current = '';
+
+        if (buffered.length >= 2) {
+          e.preventDefault();
+          // Visual indicator for USB scan flash
+          setUsbScannerIndicator(true);
+          setTimeout(() => setUsbScannerIndicator(false), 1500);
+          handleScanText(buffered, 'usb_barcode');
+        }
+      } else if (e.key.length === 1) {
+        // If keystroke arrived within 60ms of previous, or if buffer is starting
+        if (timeDiff > 80 && barcodeBufferRef.current.length > 0) {
+          // Typed too slowly - reset buffer as likely human typing
+          barcodeBufferRef.current = '';
+        }
+        barcodeBufferRef.current += e.key;
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, [handleScanText]);
 
   // Handle auto-reset countdown when a scan result is displayed
   useEffect(() => {
@@ -93,7 +177,6 @@ export const ScanQrView: React.FC = () => {
   const handleClearResult = () => {
     setScanResult(null);
     setResetCountdown(0);
-    // If camera was running, it keeps running or ready
   };
 
   // Start HTML5 Camera QR Scanner
@@ -105,7 +188,12 @@ export const ScanQrView: React.FC = () => {
       }
 
       const qrScanner = new Html5Qrcode(scannerContainerId, {
-        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.EAN_13,
+        ],
         verbose: false,
       });
       html5QrCodeRef.current = qrScanner;
@@ -118,7 +206,7 @@ export const ScanQrView: React.FC = () => {
           aspectRatio: 1.0,
         },
         (decodedText) => {
-          handleScanText(decodedText);
+          handleScanText(decodedText, 'camera');
         },
         () => {
           // Frame scan error / empty frame - ignore
@@ -129,7 +217,7 @@ export const ScanQrView: React.FC = () => {
       console.warn('Camera start error:', err);
       const errMsg = err instanceof Error ? err.message : String(err);
       setCameraError(
-        `Unable to access camera (${errMsg}). You can also upload a QR image or use the Instant Staff Simulator below.`
+        `Unable to access camera (${errMsg}). You can connect a USB Barcode Scanner, upload a QR file, or use the Instant Staff Simulator below.`
       );
       setCameraActive(false);
     }
@@ -148,37 +236,6 @@ export const ScanQrView: React.FC = () => {
     setCameraActive(false);
   };
 
-  // Process decoded QR text or Staff ID
-  const handleScanText = (text: string) => {
-    if (isProcessing) return;
-    setIsProcessing(true);
-
-    const settings = storage.getSettings();
-    const result = storage.processScan(text);
-    setScanResult(result);
-
-    if (result.success) {
-      if (result.type === 'clock_in') {
-        if (settings.enableSound) sound.playClockInSuccess();
-        // Trigger light celebratory confetti
-        confetti({
-          particleCount: 40,
-          spread: 60,
-          origin: { y: 0.6 },
-          colors: ['#6366f1', '#10b981', '#38bdf8'],
-        });
-      } else if (result.type === 'clock_out') {
-        if (settings.enableSound) sound.playClockOutSuccess();
-      }
-    } else {
-      if (settings.enableSound) sound.playWarning();
-    }
-
-    setTimeout(() => {
-      setIsProcessing(false);
-    }, 1200);
-  };
-
   // File Upload QR Scanner
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -188,19 +245,23 @@ export const ScanQrView: React.FC = () => {
       let qrScanner = html5QrCodeRef.current;
       if (!qrScanner) {
         qrScanner = new Html5Qrcode(scannerContainerId, {
-          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+          ],
           verbose: false,
         });
       }
       const decodedText = await qrScanner.scanFile(file, true);
-      handleScanText(decodedText);
-    } catch (err) {
+      handleScanText(decodedText, 'file');
+    } catch {
       const settings = storage.getSettings();
       if (settings.enableSound) sound.playWarning();
       setScanResult({
         success: false,
         type: 'error',
-        message: 'Could not detect a valid QR code in the uploaded image. Please try a clearer image.',
+        message: 'Could not detect a valid Barcode or QR code in the uploaded image. Please try a clearer image.',
         timestamp: new Date().toLocaleTimeString(),
       });
     } finally {
@@ -213,7 +274,7 @@ export const ScanQrView: React.FC = () => {
     if (!selectedStaffId) return;
     const staff = staffList.find((s) => s.id === selectedStaffId);
     if (staff) {
-      handleScanText(staff.qrCodeToken);
+      handleScanText(staff.qrCodeToken, 'simulator');
     }
   };
 
@@ -222,19 +283,69 @@ export const ScanQrView: React.FC = () => {
     const activeStaff = staffList.filter((s) => s.status === 'active');
     if (activeStaff.length === 0) return;
     const random = activeStaff[Math.floor(Math.random() * activeStaff.length)];
-    handleScanText(random.qrCodeToken);
+    handleScanText(random.qrCodeToken, 'simulator');
   };
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (manualInput.trim()) {
-      handleScanText(manualInput.trim());
+      handleScanText(manualInput.trim(), 'usb_barcode');
       setManualInput('');
     }
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {/* USB Barcode Hardware Active Live Alert Pill */}
+      <div className="bg-slate-900 dark:bg-slate-900 text-white rounded-2xl p-4 border border-slate-800 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+            usbScannerIndicator ? 'bg-emerald-500 text-slate-950 scale-110' : 'bg-indigo-600/30 text-indigo-400 border border-indigo-500/30'
+          }`}>
+            <Usb className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                Hardware USB Barcode Scanner
+              </span>
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                Plug & Play Listening
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Pull trigger on any handheld USB laser gun or 2D scanner. Keystrokes are captured automatically.
+            </p>
+          </div>
+        </div>
+
+        {/* Dedicated Scanner Focus Input */}
+        <div className="flex items-center gap-2">
+          <input
+            ref={usbInputRef}
+            type="text"
+            value={manualInput}
+            onChange={(e) => setManualInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleManualSubmit(e);
+              }
+            }}
+            placeholder="Scan USB Barcode..."
+            className="w-44 sm:w-48 px-3 py-1.5 text-xs font-mono rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+          />
+          <button
+            type="button"
+            onClick={handleManualSubmit}
+            className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-colors shrink-0"
+          >
+            Scan
+          </button>
+        </div>
+      </div>
+
       {/* Kiosk Mode Confirmation Banner Overlay */}
       {scanResult ? (
         <div
@@ -276,25 +387,32 @@ export const ScanQrView: React.FC = () => {
               </div>
 
               <div>
-                <span
-                  className={`text-xs uppercase font-extrabold tracking-widest px-2.5 py-0.5 rounded-md ${
-                    scanResult.success
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-xs uppercase font-extrabold tracking-widest px-2.5 py-0.5 rounded-md ${
+                      scanResult.success
+                        ? scanResult.type === 'clock_in'
+                          ? 'bg-emerald-500 text-slate-950'
+                          : 'bg-indigo-400 text-slate-950'
+                        : scanResult.type === 'warning'
+                        ? 'bg-amber-400 text-slate-950'
+                        : 'bg-rose-500 text-white'
+                    }`}
+                  >
+                    {scanResult.success
                       ? scanResult.type === 'clock_in'
-                        ? 'bg-emerald-500 text-slate-950'
-                        : 'bg-indigo-400 text-slate-950'
+                        ? 'CLOCK-IN CONFIRMED'
+                        : 'CLOCK-OUT CONFIRMED'
                       : scanResult.type === 'warning'
-                      ? 'bg-amber-400 text-slate-950'
-                      : 'bg-rose-500 text-white'
-                  }`}
-                >
-                  {scanResult.success
-                    ? scanResult.type === 'clock_in'
-                      ? 'CLOCK-IN CONFIRMED'
-                      : 'CLOCK-OUT CONFIRMED'
-                    : scanResult.type === 'warning'
-                    ? 'ATTENDANCE ALERT'
-                    : 'SCAN REJECTED'}
-                </span>
+                      ? 'ATTENDANCE ALERT'
+                      : 'SCAN REJECTED'}
+                  </span>
+
+                  <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
+                    {lastScannedMethod === 'usb_barcode' && <Usb className="w-3 h-3 text-indigo-400" />}
+                    {lastScannedMethod === 'usb_barcode' ? 'USB Scanner' : lastScannedMethod === 'camera' ? 'Camera' : 'Direct'}
+                  </span>
+                </div>
                 <p className="text-sm font-semibold text-slate-200 mt-1">
                   {scanResult.message}
                 </p>
@@ -312,36 +430,51 @@ export const ScanQrView: React.FC = () => {
             </div>
           </div>
 
-          {/* Staff Details (if valid staff identified) */}
+          {/* Staff Details (with official Staff Photo) */}
           {scanResult.staff && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/5 rounded-2xl p-6 border border-white/10 mb-6">
-              <div className="space-y-3">
-                <div>
+              <div className="flex items-center gap-4">
+                {/* Staff Avatar / Photo on Confirmation Screen */}
+                <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-white/20 bg-slate-800 shrink-0 shadow-md">
+                  {scanResult.staff.avatarUrl ? (
+                    <img
+                      src={scanResult.staff.avatarUrl}
+                      alt={scanResult.staff.fullName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-slate-800 text-slate-300">
+                      <User className="w-9 h-9" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
                   <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">
                     Staff Identity
                   </span>
-                  <h3 className="text-2xl font-bold text-white tracking-tight mt-0.5">
+                  <h3 className="text-xl font-bold text-white tracking-tight">
                     {scanResult.staff.fullName}
                   </h3>
-                  <div className="flex items-center gap-2 text-xs text-indigo-300 font-mono mt-1">
-                    <span>{scanResult.staff.staffId}</span>
+                  <div className="flex items-center gap-2 text-xs text-indigo-300 font-mono">
+                    <span className="font-bold">{scanResult.staff.staffId}</span>
                     <span>·</span>
                     <span className="text-slate-300">{scanResult.staff.position}</span>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-4 text-xs text-slate-300 pt-2 border-t border-white/10">
-                  <div className="flex items-center gap-1.5">
-                    <Building className="w-3.5 h-3.5 text-slate-400" />
-                    <span>
-                      {departments.find((d) => d.id === scanResult.staff?.departmentId)?.name || 'Department'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-slate-400" />
-                    <span>
-                      {shifts.find((s) => s.id === scanResult.staff?.shiftId)?.name || 'Shift'}
-                    </span>
+                  <div className="flex items-center gap-3 text-xs text-slate-300 pt-1">
+                    <div className="flex items-center gap-1">
+                      <Building className="w-3.5 h-3.5 text-slate-400" />
+                      <span>
+                        {departments.find((d) => d.id === scanResult.staff?.departmentId)?.name || 'Department'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      <span>
+                        {shifts.find((s) => s.id === scanResult.staff?.shiftId)?.name || 'Shift'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -361,7 +494,7 @@ export const ScanQrView: React.FC = () => {
 
                 {/* Additional metrics: Late or Duration */}
                 {scanResult.type === 'clock_in' && (
-                  <div className="pt-2">
+                  <div className="pt-1">
                     {scanResult.lateMinutes && scanResult.lateMinutes > 0 ? (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                         <Clock className="w-3.5 h-3.5" />
@@ -377,7 +510,7 @@ export const ScanQrView: React.FC = () => {
                 )}
 
                 {scanResult.type === 'clock_out' && scanResult.workDurationFormatted && (
-                  <div className="pt-2">
+                  <div className="pt-1">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">
                       Shift Completed: {scanResult.workDurationFormatted}
                     </span>
@@ -403,21 +536,21 @@ export const ScanQrView: React.FC = () => {
         </div>
       ) : (
         /* Standby Scanner Kiosk Interface */
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-md">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800 shadow-md">
           <div className="text-center max-w-lg mx-auto mb-6">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 mb-3 shadow-xs">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 mb-3 shadow-xs">
               <QrCode className="w-7 h-7" />
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-              Attendance QR Terminal
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+              Attendance Kiosk Terminal
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Position your staff QR code badge in front of the camera or upload your digital pass to clock in or out.
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Supports <strong>USB Barcode Handheld Guns</strong>, <strong>Camera QR Scanning</strong>, or Digital Pass Upload.
             </p>
           </div>
 
           {/* Camera Viewport or Start Camera Placeholder */}
-          <div className="max-w-md mx-auto relative rounded-2xl overflow-hidden border-2 border-slate-200 bg-slate-950 shadow-inner aspect-square flex flex-col items-center justify-center">
+          <div className="max-w-md mx-auto relative rounded-2xl overflow-hidden border-2 border-slate-200 dark:border-slate-800 bg-slate-950 shadow-inner aspect-square flex flex-col items-center justify-center">
             {/* The element HTML5-QRCode mounts into */}
             <div
               id={scannerContainerId}
@@ -431,10 +564,10 @@ export const ScanQrView: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-slate-200">
-                    Live Camera Scanning
+                    Live Camera QR Reader
                   </p>
                   <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                    Activate terminal camera to read physical ID cards or smartphone screens.
+                    Activate camera to read physical ID cards or smartphone screens.
                   </p>
                 </div>
                 <button
@@ -462,15 +595,14 @@ export const ScanQrView: React.FC = () => {
           </div>
 
           {cameraError && (
-            <div className="max-w-md mx-auto mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="max-w-md mx-auto mt-4 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <span>{cameraError}</span>
             </div>
           )}
 
-          {/* Secondary Methods: Upload File & Manual Code Input */}
-          <div className="max-w-md mx-auto mt-6 pt-6 border-t border-slate-200 space-y-4">
-            {/* File Upload Button */}
+          {/* Secondary Methods: Upload File */}
+          <div className="max-w-md mx-auto mt-6 pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4">
             <div>
               <input
                 ref={fileInputRef}
@@ -483,44 +615,27 @@ export const ScanQrView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full py-2.5 px-4 rounded-xl border border-dashed border-slate-300 hover:border-indigo-500 hover:bg-indigo-50/50 text-slate-700 text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
+                className="w-full py-2.5 px-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
               >
-                <Upload className="w-4 h-4 text-slate-500" />
-                <span>Upload QR Badge Image (PNG/JPEG)</span>
+                <Upload className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                <span>Upload QR / Barcode Badge Image (PNG/JPEG)</span>
               </button>
             </div>
-
-            {/* Manual Staff ID or Token Entry */}
-            <form onSubmit={handleManualSubmit} className="flex gap-2">
-              <input
-                type="text"
-                value={manualInput}
-                onChange={(e) => setManualInput(e.target.value)}
-                placeholder="Or enter Staff ID (e.g. EMP-1001)..."
-                className="flex-1 px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              />
-              <button
-                type="submit"
-                className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors shrink-0"
-              >
-                Clock
-              </button>
-            </form>
           </div>
         </div>
       )}
 
       {/* Simulator / Interactive Testing Panel */}
-      <div className="bg-slate-100/80 rounded-2xl p-5 border border-slate-200/80">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-3">
-          <div className="flex items-center gap-2 text-slate-700 font-semibold text-xs uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+      <div className="bg-slate-100/90 dark:bg-slate-900/90 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 mb-3">
+          <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold text-xs uppercase tracking-wider">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
             <span>Interactive Staff Punch Simulator (Instant Testing)</span>
           </div>
           <button
             type="button"
             onClick={handleRandomStaffScan}
-            className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+            className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
           >
             Punch Random Staff
           </button>
@@ -530,7 +645,7 @@ export const ScanQrView: React.FC = () => {
           <select
             value={selectedStaffId}
             onChange={(e) => setSelectedStaffId(e.target.value)}
-            className="w-full sm:flex-1 text-xs px-3 py-2 rounded-xl bg-white border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+            className="w-full sm:flex-1 text-xs px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">-- Choose any registered staff to simulate scan --</option>
             {staffList.map((s) => (
