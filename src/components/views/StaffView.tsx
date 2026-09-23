@@ -434,14 +434,15 @@ export const StaffView: React.FC<StaffViewProps> = ({
                       {/* Action buttons */}
                       <td className="py-3.5 px-4 text-right">
                         <div className="inline-flex items-center gap-1">
-                          {/* QR Code / ID Badge Modal */}
+                          {/* QR Code & ID Badge Print Modal */}
                           <button
                             type="button"
                             onClick={() => setSelectedBadgeStaff(staff)}
-                            title="View Photo ID Badge & Barcode"
-                            className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg transition-colors"
+                            title="Print ID Badge & QR Code Card"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 rounded-lg transition-colors border border-indigo-200/80 dark:border-indigo-800/80 shadow-2xs"
                           >
-                            <QrCode className="w-4 h-4" />
+                            <Printer className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline text-[11px]">Print ID</span>
                           </button>
 
                           {/* Edit Staff */}
