@@ -13,6 +13,7 @@ import {
   Lock,
   LogOut,
   X,
+  Globe,
 } from 'lucide-react';
 
 export type NavTab = 
@@ -33,6 +34,7 @@ interface NavigationProps {
   onLogoutAdmin: () => void;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
+  onOpenDeployGuide?: () => void;
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
@@ -43,6 +45,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   onLogoutAdmin,
   isOpenMobile,
   onCloseMobile,
+  onOpenDeployGuide,
 }) => {
   const navItems = [
     { id: 'dashboard' as NavTab, label: 'Dashboard', icon: LayoutDashboard },
@@ -145,6 +148,22 @@ export const Navigation: React.FC<NavigationProps> = ({
               </button>
             );
           })}
+
+          {onOpenDeployGuide && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenDeployGuide();
+                  if (isOpenMobile) onCloseMobile();
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/40 border border-indigo-900/60 transition-colors"
+              >
+                <Globe className="w-4 h-4 shrink-0 text-indigo-400" />
+                <span className="truncate">Deploy to Web Hosting</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Admin status footer */}

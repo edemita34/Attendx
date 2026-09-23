@@ -16,10 +16,13 @@ import {
   Sun,
   Moon,
   Laptop,
+  Globe,
+  ExternalLink,
 } from 'lucide-react';
 import { storage } from '../../services/storage';
 import { SystemSettings } from '../../types';
 import { getStoredTheme, setTheme, ThemeMode } from '../../utils/theme';
+import { DeploymentGuideModal } from '../DeploymentGuideModal';
 
 interface SettingsViewProps {
   isAdmin: boolean;
@@ -33,6 +36,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ isAdmin, onOpenAdmin
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordNotice, setPasswordNotice] = useState('');
   const [activeTheme, setActiveTheme] = useState<ThemeMode>('light');
+  const [isDeployGuideOpen, setIsDeployGuideOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -444,6 +448,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ isAdmin, onOpenAdmin
           </div>
         </div>
       </div>
+
+      {/* Web Hosting & Production Deployment Guide */}
+      <div className="bg-linear-to-br from-indigo-900 via-slate-900 to-slate-900 rounded-2xl p-6 text-white border border-indigo-950 shadow-md relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-indigo-300 text-xs font-semibold">
+              <Globe className="w-4 h-4 text-indigo-400" />
+              <span>Production Deployment Documentation</span>
+            </div>
+            <h3 className="text-base font-bold text-white">Deploy to Web Hosting Space</h3>
+            <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+              Step-by-step guides for cPanel, Shared Web Hosting (Hostinger, Namecheap, GoDaddy), Nginx on Linux VPS, Netlify, and Docker with sample configurations.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsDeployGuideOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-md transition-all shrink-0"
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>Open Deployment Guide</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Deployment Guide Modal */}
+      <DeploymentGuideModal
+        isOpen={isDeployGuideOpen}
+        onClose={() => setIsDeployGuideOpen(false)}
+      />
     </div>
   );
 };

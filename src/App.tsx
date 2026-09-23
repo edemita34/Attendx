@@ -10,6 +10,7 @@ import { ScanQrView } from './components/views/ScanQrView';
 import { AttendanceRecordsView } from './components/views/AttendanceRecordsView';
 import { ReportsView } from './components/views/ReportsView';
 import { SettingsView } from './components/views/SettingsView';
+import { DeploymentGuideModal } from './components/DeploymentGuideModal';
 import { storage } from './services/storage';
 import { getStoredTheme, applyTheme } from './utils/theme';
 
@@ -17,6 +18,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
   const [isAdmin, setIsAdmin] = useState<boolean>(true); // default authenticated for ease of evaluation
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState<boolean>(false);
+  const [isDeployGuideOpen, setIsDeployGuideOpen] = useState<boolean>(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
 
   // Cross-view navigation state
@@ -60,6 +62,7 @@ export default function App() {
         onLogoutAdmin={handleLogoutAdmin}
         isOpenMobile={isMobileNavOpen}
         onCloseMobile={() => setIsMobileNavOpen(false)}
+        onOpenDeployGuide={() => setIsDeployGuideOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -133,6 +136,12 @@ export default function App() {
         isOpen={isAdminLoginOpen}
         onClose={() => setIsAdminLoginOpen(false)}
         onSuccess={() => setIsAdmin(true)}
+      />
+
+      {/* Web Hosting Deployment Guide Modal */}
+      <DeploymentGuideModal
+        isOpen={isDeployGuideOpen}
+        onClose={() => setIsDeployGuideOpen(false)}
       />
     </div>
   );
