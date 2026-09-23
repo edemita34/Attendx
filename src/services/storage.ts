@@ -807,7 +807,7 @@ export class StorageService {
 
   // --- Admin Session ---
   isAdminAuthenticated(): boolean {
-    if (typeof window === 'undefined') return true;
+    if (typeof window === 'undefined') return false;
     const session = sessionStorage.getItem(STORAGE_KEYS.ADMIN_AUTH);
     return session === 'authenticated';
   }

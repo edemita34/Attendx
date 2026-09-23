@@ -15,8 +15,8 @@ import { storage } from './services/storage';
 import { getStoredTheme, applyTheme } from './utils/theme';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
-  const [isAdmin, setIsAdmin] = useState<boolean>(true); // default authenticated for ease of evaluation
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => storage.isAdminAuthenticated());
+  const [activeTab, setActiveTab] = useState<NavTab>(() => storage.isAdminAuthenticated() ? 'dashboard' : 'scanner');
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState<boolean>(false);
   const [isDeployGuideOpen, setIsDeployGuideOpen] = useState<boolean>(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
@@ -49,15 +49,13 @@ export default function App() {
   const handleLogoutAdmin = () => {
     storage.setAdminAuthenticated(false);
     setIsAdmin(false);
-    setActiveTab('scanner'); // Lock directly into Kiosk / Staff mode where main menu is hidden!
+    setActiveTab('scanner'); // Lock directly into default kiosk mode where main menu is hidden!
   };
-
-  const isKioskMode = activeTab === 'scanner';
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-150">
-      {/* Sidebar Navigation - Hidden in Kiosk / Staff Mode */}
-      {!isKioskMode && (
+      {/* Sidebar Navigation - ONLY display main menu when admin is logged in */}
+      {isAdmin && (
         <Navigation
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -70,8 +68,8 @@ export default function App() {
         />
       )}
 
-      {/* Main Content Area - Full width without sidebar margin in Kiosk / Staff Mode */}
-      <div className={`${!isKioskMode ? 'lg:pl-64' : ''} flex flex-col flex-1 min-w-0 transition-all duration-200`}>
+      {/* Main Content Area - Full width without sidebar margin when not admin */}
+      <div className={`${isAdmin ? 'lg:pl-64' : ''} flex flex-col flex-1 min-w-0 transition-all duration-200`}>
         {/* Sticky Header with Theme & Kiosk Controls */}
         <Header
           activeTab={activeTab}
@@ -84,14 +82,22 @@ export default function App() {
 
         {/* View Content Canvas */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto print:p-0 print:m-0">
-          {activeTab === 'dashboard' && (
+          {(!isAdmin || activeTab === 'scanner') && (
+            <ScanQrView
+              isAdmin={isAdmin}
+              onExitKiosk={() => setActiveTab('dashboard')}
+              onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
+            />
+          )}
+
+          {isAdmin && activeTab === 'dashboard' && (
             <DashboardView
               onNavigate={setActiveTab}
               onOpenAddStaff={handleOpenAddStaffFromDash}
             />
           )}
 
-          {activeTab === 'staff' && (
+          {isAdmin && activeTab === 'staff' && (
             <StaffView
               isAdmin={isAdmin}
               onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
@@ -100,7 +106,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'departments' && (
+          {isAdmin && activeTab === 'departments' && (
             <DepartmentsView
               isAdmin={isAdmin}
               onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
@@ -108,22 +114,14 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'shifts' && (
+          {isAdmin && activeTab === 'shifts' && (
             <ShiftsView
               isAdmin={isAdmin}
               onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
             />
           )}
 
-          {activeTab === 'scanner' && (
-            <ScanQrView
-              isAdmin={isAdmin}
-              onExitKiosk={() => setActiveTab('dashboard')}
-              onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
-            />
-          )}
-
-          {activeTab === 'records' && (
+          {isAdmin && activeTab === 'records' && (
             <AttendanceRecordsView
               isAdmin={isAdmin}
               onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
@@ -131,9 +129,9 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'reports' && <ReportsView />}
+          {isAdmin && activeTab === 'reports' && <ReportsView />}
 
-          {activeTab === 'settings' && (
+          {isAdmin && activeTab === 'settings' && (
             <SettingsView
               isAdmin={isAdmin}
               onOpenAdminLogin={() => setIsAdminLoginOpen(true)}

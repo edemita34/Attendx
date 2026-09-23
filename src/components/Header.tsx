@@ -37,7 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [currentTheme, setCurrentTheme] = useState<ThemeMode>('light');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
-  const isKioskMode = activeTab === 'scanner';
+  const isKioskMode = !isAdmin || activeTab === 'scanner';
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -229,12 +229,12 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <button
               onClick={onOpenAdminLogin}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-all shadow-xs"
-              title="Enter Admin PIN to unlock Main Menu"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all shadow-xs"
+              title="Enter Admin PIN to unlock Main Menu & Admin features"
             >
-              <Lock className="w-3.5 h-3.5 text-slate-400" />
-              <span className="hidden sm:inline">Admin Access</span>
-              <span className="sm:hidden">Admin</span>
+              <Lock className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Admin Login</span>
+              <span className="sm:hidden">Login</span>
             </button>
           )
         ) : (
