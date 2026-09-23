@@ -19,6 +19,8 @@ import {
   Usb,
   User,
   Radio,
+  LayoutDashboard,
+  Lock,
 } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import confetti from 'canvas-confetti';
@@ -26,7 +28,17 @@ import { storage } from '../../services/storage';
 import { sound } from '../../utils/audio';
 import { Staff, Department, Shift, ScanResult } from '../../types';
 
-export const ScanQrView: React.FC = () => {
+interface ScanQrViewProps {
+  isAdmin?: boolean;
+  onExitKiosk?: () => void;
+  onOpenAdminLogin?: () => void;
+}
+
+export const ScanQrView: React.FC<ScanQrViewProps> = ({
+  isAdmin,
+  onExitKiosk,
+  onOpenAdminLogin,
+}) => {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [resetCountdown, setResetCountdown] = useState<number>(0);
   const [cameraActive, setCameraActive] = useState<boolean>(false);
@@ -296,6 +308,48 @@ export const ScanQrView: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {/* Kiosk Mode Status & Main Menu Locked Notice */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <Radio className="w-5 h-5 animate-pulse" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                Staff Kiosk Terminal
+              </span>
+              <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
+                Main Menu Hidden
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Distraction-free clock-in terminal. Administrative navigation is hidden for staff privacy and terminal protection.
+            </p>
+          </div>
+        </div>
+
+        {isAdmin ? (
+          <button
+            type="button"
+            onClick={onExitKiosk}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors shadow-2xs self-start sm:self-auto shrink-0"
+          >
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            <span>Exit Kiosk</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onOpenAdminLogin}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors shadow-2xs self-start sm:self-auto shrink-0"
+          >
+            <Lock className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+            <span>Admin Access</span>
+          </button>
+        )}
+      </div>
+
       {/* USB Barcode Hardware Active Live Alert Pill */}
       <div className="bg-slate-900 dark:bg-slate-900 text-white rounded-2xl p-4 border border-slate-800 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">

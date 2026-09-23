@@ -49,24 +49,29 @@ export default function App() {
   const handleLogoutAdmin = () => {
     storage.setAdminAuthenticated(false);
     setIsAdmin(false);
+    setActiveTab('scanner'); // Lock directly into Kiosk / Staff mode where main menu is hidden!
   };
+
+  const isKioskMode = activeTab === 'scanner';
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-150">
-      {/* Sidebar Navigation */}
-      <Navigation
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        isAdmin={isAdmin}
-        onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
-        onLogoutAdmin={handleLogoutAdmin}
-        isOpenMobile={isMobileNavOpen}
-        onCloseMobile={() => setIsMobileNavOpen(false)}
-        onOpenDeployGuide={() => setIsDeployGuideOpen(true)}
-      />
+      {/* Sidebar Navigation - Hidden in Kiosk / Staff Mode */}
+      {!isKioskMode && (
+        <Navigation
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          isAdmin={isAdmin}
+          onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
+          onLogoutAdmin={handleLogoutAdmin}
+          isOpenMobile={isMobileNavOpen}
+          onCloseMobile={() => setIsMobileNavOpen(false)}
+          onOpenDeployGuide={() => setIsDeployGuideOpen(true)}
+        />
+      )}
 
-      {/* Main Content Area */}
-      <div className="lg:pl-64 flex flex-col flex-1 min-w-0">
+      {/* Main Content Area - Full width without sidebar margin in Kiosk / Staff Mode */}
+      <div className={`${!isKioskMode ? 'lg:pl-64' : ''} flex flex-col flex-1 min-w-0 transition-all duration-200`}>
         {/* Sticky Header with Theme & Kiosk Controls */}
         <Header
           activeTab={activeTab}
@@ -110,7 +115,13 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'scanner' && <ScanQrView />}
+          {activeTab === 'scanner' && (
+            <ScanQrView
+              isAdmin={isAdmin}
+              onExitKiosk={() => setActiveTab('dashboard')}
+              onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
+            />
+          )}
 
           {activeTab === 'records' && (
             <AttendanceRecordsView
@@ -135,7 +146,12 @@ export default function App() {
       <AdminLoginModal
         isOpen={isAdminLoginOpen}
         onClose={() => setIsAdminLoginOpen(false)}
-        onSuccess={() => setIsAdmin(true)}
+        onSuccess={() => {
+          setIsAdmin(true);
+          if (activeTab === 'scanner') {
+            setActiveTab('dashboard');
+          }
+        }}
       />
 
       {/* Web Hosting Deployment Guide Modal */}

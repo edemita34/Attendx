@@ -56,7 +56,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'shifts' as NavTab, label: 'Shifts & Rosters', icon: CalendarClock },
     {
       id: 'scanner' as NavTab,
-      label: 'Scan QR / Attendance',
+      label: 'Kiosk / Staff Mode',
       icon: QrCode,
       highlight: true,
     },
@@ -116,7 +116,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             }`}
           >
             <QrCode className="w-4 h-4" />
-            <span>Launch QR Scanner</span>
+            <span>Enter Kiosk / Staff Mode</span>
           </button>
         </div>
 
