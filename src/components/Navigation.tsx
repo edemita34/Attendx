@@ -14,6 +14,8 @@ import {
   LogOut,
   X,
   Globe,
+  Video,
+  PlaySquare,
 } from 'lucide-react';
 
 export type NavTab = 
@@ -157,10 +159,15 @@ export const Navigation: React.FC<NavigationProps> = ({
                   onOpenDeployGuide();
                   if (isOpenMobile) onCloseMobile();
                 }}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/40 border border-indigo-900/60 transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-indigo-300 hover:text-white bg-indigo-950/30 hover:bg-indigo-900/50 border border-indigo-800/60 transition-all shadow-2xs group"
               >
-                <Globe className="w-4 h-4 shrink-0 text-indigo-400" />
-                <span className="truncate">Deploy to Web Hosting</span>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <PlaySquare className="w-4 h-4 shrink-0 text-rose-400 group-hover:scale-110 transition-transform" />
+                  <span className="truncate font-medium">Video Guide: Deploy</span>
+                </div>
+                <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[9px] font-bold tracking-wide uppercase border border-rose-500/30">
+                  cPanel
+                </span>
               </button>
             </div>
           )}

@@ -14,17 +14,25 @@ import {
   Terminal,
   FolderArchive,
   ArrowRight,
+  PlaySquare,
+  Video,
 } from 'lucide-react';
+import { VideoDeploymentGuide } from './VideoDeploymentGuide';
 
 interface DeploymentGuideModalProps {
   isOpen: boolean;
   onClose: () => void;
+  defaultTab?: GuideTab;
 }
 
-type GuideTab = 'cpanel' | 'nginx' | 'cloud' | 'docker' | 'checklist';
+export type GuideTab = 'video' | 'cpanel' | 'nginx' | 'cloud' | 'docker' | 'checklist';
 
-export const DeploymentGuideModal: React.FC<DeploymentGuideModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<GuideTab>('cpanel');
+export const DeploymentGuideModal: React.FC<DeploymentGuideModalProps> = ({
+  isOpen,
+  onClose,
+  defaultTab = 'video',
+}) => {
+  const [activeTab, setActiveTab] = useState<GuideTab>(defaultTab);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -39,6 +47,15 @@ export const DeploymentGuideModal: React.FC<DeploymentGuideModalProps> = ({ isOp
     const link = document.createElement('a');
     link.href = '/DEPLOYMENT_GUIDE.md';
     link.download = 'StaffSync_Deployment_Guide.md';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDownloadVideoScript = () => {
+    const link = document.createElement('a');
+    link.href = '/CPANEL_VIDEO_GUIDE.md';
+    link.download = 'StaffSync_cPanel_Video_Guide_Script.md';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -82,8 +99,8 @@ export const DeploymentGuideModal: React.FC<DeploymentGuideModalProps> = ({ isOp
 }`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[94vh] animate-in fade-in zoom-in-95 duration-150">
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-800/50">
           <div className="flex items-center gap-3">
@@ -91,23 +108,29 @@ export const DeploymentGuideModal: React.FC<DeploymentGuideModalProps> = ({ isOp
               <Globe className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white leading-tight">
-                Web Hosting & Deployment Guide
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900 dark:text-white leading-tight">
+                  Web Hosting & Deployment Guide
+                </h2>
+                <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                  <Video className="w-2.5 h-2.5" />
+                  <span>Video Included</span>
+                </span>
+              </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Step-by-step instructions for cPanel, shared hosting, Nginx, or modern cloud platforms
+                Interactive video screencast & documentation for cPanel shared hosting, Nginx, or cloud platforms
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
-              onClick={handleDownloadGuide}
-              title="Download Markdown Documentation"
+              onClick={handleDownloadVideoScript}
+              title="Download Video Script & Storyboard (.MD)"
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl transition-colors shadow-2xs"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span>Download .MD</span>
+              <Download className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Video Script (.MD)</span>
             </button>
             <button
               onClick={onClose}
@@ -121,10 +144,22 @@ export const DeploymentGuideModal: React.FC<DeploymentGuideModalProps> = ({ isOp
         {/* Tab Navigation */}
         <div className="px-6 pt-3 pb-2 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2 overflow-x-auto text-xs font-medium">
           <button
+            onClick={() => setActiveTab('video')}
+            className={`px-3.5 py-1.5 rounded-xl transition-colors shrink-0 flex items-center gap-1.5 ${
+              activeTab === 'video'
+                ? 'bg-rose-600 text-white font-semibold shadow-xs'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <PlaySquare className="w-3.5 h-3.5" />
+            <span>Interactive Video Guide</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('cpanel')}
             className={`px-3 py-1.5 rounded-xl transition-colors shrink-0 flex items-center gap-1.5 ${
               activeTab === 'cpanel'
-                ? 'bg-indigo-600 text-white font-semibold'
+                ? 'bg-indigo-600 text-white font-semibold shadow-xs'
                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
@@ -136,7 +171,7 @@ export const DeploymentGuideModal: React.FC<DeploymentGuideModalProps> = ({ isOp
             onClick={() => setActiveTab('nginx')}
             className={`px-3 py-1.5 rounded-xl transition-colors shrink-0 flex items-center gap-1.5 ${
               activeTab === 'nginx'
-                ? 'bg-indigo-600 text-white font-semibold'
+                ? 'bg-indigo-600 text-white font-semibold shadow-xs'
                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
@@ -148,7 +183,7 @@ export const DeploymentGuideModal: React.FC<DeploymentGuideModalProps> = ({ isOp
             onClick={() => setActiveTab('cloud')}
             className={`px-3 py-1.5 rounded-xl transition-colors shrink-0 flex items-center gap-1.5 ${
               activeTab === 'cloud'
-                ? 'bg-indigo-600 text-white font-semibold'
+                ? 'bg-indigo-600 text-white font-semibold shadow-xs'
                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
@@ -160,7 +195,7 @@ export const DeploymentGuideModal: React.FC<DeploymentGuideModalProps> = ({ isOp
             onClick={() => setActiveTab('docker')}
             className={`px-3 py-1.5 rounded-xl transition-colors shrink-0 flex items-center gap-1.5 ${
               activeTab === 'docker'
-                ? 'bg-indigo-600 text-white font-semibold'
+                ? 'bg-indigo-600 text-white font-semibold shadow-xs'
                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
@@ -172,7 +207,7 @@ export const DeploymentGuideModal: React.FC<DeploymentGuideModalProps> = ({ isOp
             onClick={() => setActiveTab('checklist')}
             className={`px-3 py-1.5 rounded-xl transition-colors shrink-0 flex items-center gap-1.5 ${
               activeTab === 'checklist'
-                ? 'bg-indigo-600 text-white font-semibold'
+                ? 'bg-indigo-600 text-white font-semibold shadow-xs'
                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
@@ -182,8 +217,15 @@ export const DeploymentGuideModal: React.FC<DeploymentGuideModalProps> = ({ isOp
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs text-slate-700 dark:text-slate-300">
-          {/* TAB 1: cPanel / Shared Hosting */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 text-xs text-slate-700 dark:text-slate-300">
+          {/* TAB: VIDEO GUIDE */}
+          {activeTab === 'video' && (
+            <div className="space-y-4">
+              <VideoDeploymentGuide />
+            </div>
+          )}
+
+          {/* TAB: cPanel / Shared Hosting */}
           {activeTab === 'cpanel' && (
             <div className="space-y-4">
               <div className="bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 rounded-xl p-4">
@@ -256,7 +298,7 @@ export const DeploymentGuideModal: React.FC<DeploymentGuideModalProps> = ({ isOp
             </div>
           )}
 
-          {/* TAB 2: Nginx / Linux VPS */}
+          {/* TAB: Nginx / Linux VPS */}
           {activeTab === 'nginx' && (
             <div className="space-y-4">
               <div className="bg-slate-100 dark:bg-slate-800/80 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700">
@@ -295,7 +337,7 @@ sudo certbot --nginx -d attendance.yourcompany.com`}
             </div>
           )}
 
-          {/* TAB 3: Netlify & Vercel */}
+          {/* TAB: Netlify & Vercel */}
           {activeTab === 'cloud' && (
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -334,7 +376,7 @@ sudo certbot --nginx -d attendance.yourcompany.com`}
             </div>
           )}
 
-          {/* TAB 4: Docker */}
+          {/* TAB: Docker */}
           {activeTab === 'docker' && (
             <div className="space-y-4">
               <p className="text-slate-600 dark:text-slate-400">
@@ -364,7 +406,7 @@ CMD ["nginx", "-g", "daemon off;"]`}
             </div>
           )}
 
-          {/* TAB 5: Key Requirements */}
+          {/* TAB: Key Requirements */}
           {activeTab === 'checklist' && (
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -403,9 +445,15 @@ CMD ["nginx", "-g", "daemon off;"]`}
 
         {/* Modal Footer */}
         <div className="px-6 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50 flex items-center justify-between">
-          <span className="text-[11px] text-slate-500 dark:text-slate-400">
-            StaffSync Web Hosting Documentation
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownloadGuide}
+              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold flex items-center gap-1"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>General Deployment Guide (.MD)</span>
+            </button>
+          </div>
           <button
             onClick={onClose}
             className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors"
